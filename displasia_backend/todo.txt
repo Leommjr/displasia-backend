@@ -1,0 +1,16 @@
+# todo
+Criação de valores shap em local shap demorando muito
+Organizar o código e adicionar documentação
+Ajustar retorno dos endpoints
+Target está aparecendo na legenda do shap global
+atributos dinâmicos
+reclassificação gerar justificativa
+botão de confirmação de classe
+Table reclassificação/qualidade?
+abas separadas para explicações locais e globais
+# frontend
+Integrar com a api
+Melhoras visuais de arquitetura de dados
+tela de listagem e busca de amostras (layout)
+amostra -> layout vertical e não horizontal em telas grandes
+cor das amostras
