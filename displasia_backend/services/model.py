@@ -31,6 +31,7 @@ import matplotlib.patches as mpatches
 from ..models import Classe, GlobalData, Names
 from ..utils import util
 from ..db.repository import amostra
+from ..logger import log, log_level
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -64,17 +65,19 @@ def train():
     acc = metrics.accuracy_score(global_data.test_target, test_pred)
     fscore = metrics.f1_score(global_data.test_target, test_pred, average='macro')
     recall = metrics.recall_score(global_data.test_target, test_pred, average='macro')
-    print("Log Loss: ", log_loss)
-    print("AUC: ", auc)
-    print("Acuracia: ", acc)
-    print("F-score: ", fscore)
-    print("Recall: ", recall)
+    log.log(log_level(), "Log Loss: "+ str(log_loss))
+    log.log(log_level(), "AUC: "+ str(auc))
+    log.log(log_level(), "Acuracia: "+ str(acc))
+    log.log(log_level(), "F-score: "+ str(fscore))
+    log.log(log_level(), "Recall: "+ str(recall))
     with open("displasia_backend/static/model.joblib", 'wb') as file:
         joblib.dump(model, file)
     modelos_bin = train_bin_models(global_data.class_names, global_data.scaled_train_data, global_data.train_target)
     with open("displasia_backend/static/modelbin.joblib", 'wb') as file:
         joblib.dump(modelos_bin, file)
-    #global_shap(model)
+    global_shap(model)
+    for amostr in amostra.get_all_amostras():
+        predict(amostr.id)
 
 def remove_low_variance(train_data, test_data, threshold):
     selector = VarianceThreshold()
@@ -158,7 +161,7 @@ def scale_data():
 
 
 
-def local_shap(model, scaler, sample):
+def local_shap(model, scaler, sample, sample_id):
     handler = 'displasia_backend/static/shap.save'
     if not os.path.exists(handler) or os.path.getsize(handler) == 0:
         return
@@ -169,7 +172,7 @@ def local_shap(model, scaler, sample):
     np.random.seed(10)
     local_shap_values = shap_explainer.shap_values(scaled_sample)
     shap.force_plot(shap_explainer.expected_value[pred], local_shap_values[pred], sample, link="logit", matplotlib=True, show=False)
-    plt.savefig('displasia_backend/static/shap_local.jpg', bbox_inches='tight')
+    plt.savefig('displasia_backend/static/shap'+str(sample_id), bbox_inches='tight')
     return local_shap_values
 
 def global_shap(model):
@@ -252,26 +255,19 @@ def predict(sample_id):
             c_maioria = key
             c_qtd = value
 
-    if(len(qtds.keys()) == 3):
-        print("nao há consensso")
-    else:
-        print("a maioria dos modelos binarios concorda com:",c_maioria)
+    if not (len(qtds.keys()) == 3):
         conclusivo = True
     
-    for i in range(3):
-        if(i not in qtds.keys()):
-            print('classe', i, 'foi descartada')
-
     preds = [pred,pred_bs]
-    print(preds)
     exps = local_anchor(global_data.class_names, model, global_data.scaler, global_data.train_data, sample_data)
     rules = rule_extractor(exps[pred].names())
-    local_shap_values= local_shap(model, global_data.scaler, sample_data)
+    local_shap_values= local_shap(model, global_data.scaler, sample_data, sample_id)
     mi_shap = best_atributes_shap(local_shap_values, global_data.test_data, pred)
-    print(mi_shap)
     mi_anchors = best_atributes_anchor(rules)
+    print("Shap: "+ str(type(mi_shap)))
+    print("Anchor: " + str(mi_anchors))
     selected_data = best_values(mi_shap, mi_anchors, sample_data, global_data.test_data, global_data.train_data, pred, global_data.train_target)
-    print(selected_data.sort_values(by='distance').head(3))
+    #print(selected_data.sort_values(by='distance').head(3))
     return preds
 
 
